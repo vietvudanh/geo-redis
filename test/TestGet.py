@@ -1,48 +1,43 @@
-import unittest
-from redis_handler import *
-from mock import Mock
+from TestGeoredis import TestGeoredis
 
-class TestAdd(unittest.TestCase):
-
-    HOST = 'localhost'
-    PORT = 6379
-    TEST_DB = 9
-
-    KEY = 'LOCATION'
-
-    test_data_success = [
+class TestGet(TestGeoredis):
+    
+    test_data_added = [
         (50.0, 120.0, 'Hanoi'),
-        (80.0, 120.0, 'Tokyo')
+        (80.0, 120.0, 'Tokyo'),
+        (30.0, 120.0, 'Osaka'),
+        (30.0, 50.0, 'New York')
     ]
 
-    test_data_wrong_lon_lat = [
-        (100.0, 90.0, 'Hanoi'),
-        (90.0, -200.0, 'Tokyo'),
-        ('3A', -200.0, 'Osaka'),
-        ('3A', '123v', 'New York')
+    test_data_fail = [
+        1,
+        1.0,
+        -200,
+        9999,
+        'abc123',
+        'efg',
+        'LOCATION::urn5x1g8c13'
     ]
+
+    all_data = None
 
     def setUp(self):
-        # fake Flask app logger
-        app = Mock()
-        app.logger = Mock()
-        app.logger.error = lambda s : None
-        app.logger.info = lambda s : None
+        for lat, lon, name in self.test_data_added:
+            self._geo_redis.add(self.KEY, lat, lon, name)
 
-        self._geo_redis = GeoRedis(app, host=self.HOST, port=self.PORT, db=self.TEST_DB)
-        pass
+    def test_get_all(self):
+        all_data = self._geo_redis.get_all(self.KEY)
+        self.assertEqual(len(all_data), len(self.test_data_added))
+        self.assertIsInstance(all_data, list)
 
-    def tearDown(self):
-        self._geo_redis._redis_conn.flushdb()
-        pass
+    def test_get_one_success(self):
+        all_data = self._geo_redis.get_all(self.KEY)
+        for location in all_data:
+            self.assertIsInstance(self._geo_redis.get_by_name(location['key_name']), dict)
 
-    def test_add_success(self):
-        for lat, lon, name in self.test_data_success:
-            self.assertTrue(self._geo_redis.add(self.KEY, lat, lon, name))
-
-    def test_add_fail(self):
-        for lat, lon, name in self.test_data_wrong_lon_lat:
-            self.assertFalse(self._geo_redis.add(self.KEY, lat, lon, name))
+    def test_get_one_fail(self):
+        for name in self.test_data_fail:
+            self.assertNotIsInstance(self._geo_redis.get_by_name(str(name)), dict)
 
 if __name__ == '__main__':
     unittest.main()

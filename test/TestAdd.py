@@ -1,40 +1,23 @@
-import unittest
-from redis_handler import *
-from mock import Mock
+from TestGeoredis import TestGeoredis
 
-class TestAdd(unittest.TestCase):
-
-    HOST = 'localhost'
-    PORT = 6379
-    TEST_DB = 9
-
-    KEY = 'LOCATION'
+class TestAdd(TestGeoredis):
 
     test_data_success = [
         (50.0, 120.0, 'Hanoi'),
-        (80.0, 120.0, 'Tokyo')
+        (80.0, 120.0, 'Tokyo'),
+        (30.0, 120.0, 'Osaka'),
+        (30.0, 50.0, 'New York')
     ]
 
     test_data_wrong_lon_lat = [
         (100.0, 90.0, 'Hanoi'),
-        (90.0, -200.0, 'Tokyo'),
-        ('3A', -200.0, 'Osaka'),
+        (-91.0, 90.0, 'Shanghai'),
+        (91.0, 90.0, 'Hong Kong'),
+        (90.0, -181.0, 'Tokyo'),
+        (90.0, 181.0, 'LA'),
+        ('3A', 181.0, 'Osaka'),
         ('3A', '123v', 'New York')
     ]
-
-    def setUp(self):
-        # fake Flask app logger
-        app = Mock()
-        app.logger = Mock()
-        app.logger.error = lambda s : None
-        app.logger.info = lambda s : None
-
-        self._geo_redis = GeoRedis(app, host=self.HOST, port=self.PORT, db=self.TEST_DB)
-        pass
-
-    def tearDown(self):
-        self._geo_redis._redis_conn.flushdb()
-        pass
 
     def test_add_success(self):
         for lat, lon, name in self.test_data_success:

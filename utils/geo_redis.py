@@ -2,7 +2,8 @@ import redis
 import traceback
 import Geohash
 import json
-
+import re
+from constant import check_lat_lon_value
 
 class GeoRedis(object):
     """
@@ -11,6 +12,8 @@ class GeoRedis(object):
     """
 
     HASH_PRECISION = 11  # precison for python geohash lib, match redis GEOHASH
+
+    UNITS = ['km', 'm', 'mi', 'ft']
 
     def __init__(self, app, host, port, db):
         try:
@@ -30,6 +33,14 @@ class GeoRedis(object):
         """
         return "{0}::{1}".format(key, hash_name)
 
+    def is_key_name_format(self, key_name):
+        """
+        Check if key_name is in format: [KEY]::[NAME]
+        """
+        pattern = re.compile('[A-Z]+::[a-z0-9]+')
+        if pattern.match(key_name): return True
+        return False
+
     def _break_key_name(self, key_name):
         """
         Break key in format [KEY]::[NAME] in to [KEY] and [NAME]
@@ -47,13 +58,18 @@ class GeoRedis(object):
         """
         Fetch data form Redis's get() and convert to object
         """
-        return json.loads(self._redis_conn.get(key))
+        value = self._redis_conn.get(key)
+        if value: return json.loads(value)
+        return None
 
     def _set_data_as_json(self, key, data):
         """
         Store data using Redis's set() as json dumps
         """
         return self._redis_conn.set(key, json.dumps(data))
+
+    def _check_unit(self, unit):
+        return unit in self.UNITS
 
     # PUBLIC
     def add(self, key, lat, lon, name, data={}):
@@ -69,7 +85,7 @@ class GeoRedis(object):
                 key, lon, lat, self._key_name(key, hash_name))
             data['name'] = name
             self._set_data_as_json(self._key_name(
-                key, hash_name), json.dumps(data))
+                key, hash_name), data)
         except Exception as e:
             self._app.logger.error('Cannot add location {}'.format(
                 {'key': key, 'lon': lon, 'lat': lat, 'name': name}))
@@ -101,6 +117,8 @@ class GeoRedis(object):
         """
         Return data for a location: name, lat, lon, addition data...
         """
+        if not self.is_key_name_format(key_name): return None
+
         key, name = self._break_key_name(key_name)
         data = self._get_data_as_json(key_name)
         if data:
@@ -115,6 +133,9 @@ class GeoRedis(object):
         Return list of locations in redis in a radius from original lat, lon.
         Data return: lat, lon, distance to orignal, additional data
         """
+        if not self._check_unit(unit)\
+            or not check_lat_lon_value(lat, lon):
+            return None
         try:
             distance_data = self._redis_conn.georadius(
                 key, lat, lon, radius, unit, True)
@@ -129,7 +150,7 @@ class GeoRedis(object):
         except Exception as e:
             print e
             self._app.logger.error('Cannot get radius {}'.format(
-                {'key': key, 'lon': lon, 'lat': lat}))
+                {'key': key, 'lon': lon, 'lat': lat, 'radius': radius, 'unit': unit}))
             self._app.logger.error(traceback.format_exc())
             return None
 
@@ -138,6 +159,8 @@ class GeoRedis(object):
         Return list of locations in redis from a given location from redis.
         Data return: lat, lon, distance to orignal, additional data
         """
+        if not self._check_unit(unit):
+            return None
         try:
             distance_data = self._redis_conn.georadiusbymember(
                 key, name, radius, unit, True)
@@ -152,7 +175,7 @@ class GeoRedis(object):
             return data
         except Exception as e:
             self._app.logger.error('Cannot get data by radius {}'.format(
-                {'key': key, 'lon': lon, 'lat': lat, 'name': name}))
+                {'key': key, 'name': name, 'radius': radius, 'unit': unit}))
             self._app.logger.error(traceback.format_exc())
             return None
 
@@ -166,6 +189,7 @@ class GeoRedis(object):
             data = []
             for name in names_data:
                 data_location = self._get_data_as_json(name)
+                data_location['key_name'] = name
                 data_location['lat'], data_location['lon'] = \
                     self._redis_conn.geopos(key, name)[0]
                 data.append(data_location)

@@ -1,20 +1,16 @@
 from flask import Flask, jsonify, request, g
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from redis_handler import GeoRedis
-from constant import StatusCode
-from constant import GeoConstant
+from utils.geo_redis import GeoRedis
+from utils.constant import StatusCode, GeoConstant, check_lat_lon_value
 
-# flask
+
+# Flask
 app = Flask(__name__)
 app.config.from_object('config.DevConfig')
 
 
-@app.route('/', methods=['GET'])
-def index():
-    return 'Dump'
-
-
+# ROUTERs
 @app.route('/all', methods=['GET'])
 def list_all():
     key = app.config['REDIS_KEY']
@@ -34,8 +30,7 @@ def add():
     try:
         lat = float(request.form['lat'])
         lon = float(request.form['lon'])
-        if GeoConstant.LAT_MIN <= lat <= GeoConstant.LAT_MAX \
-                and GeoConstant.LON_MIN <= lon <= GeoConstant.LON_MAX:
+        if check_lat_lon_value(lat, lon):
             val_check = True
     except ValueError as e:
         print e
@@ -50,8 +45,11 @@ def add():
     ret_check = False
     if lon and lat and name:
         ret_check = geo_redis.add(key, lat, lon, name)
-    response = jsonify({
-        'message': 'add {0} at [{1}, {2}]success'.format(name, lat, lon)})
+    if ret_check:
+        message = 'Added {0} at [{1}, {2}]success'.format(name, lat, lon)
+    else:
+        message = 'Cannot add {0} at [{1}, {2}]'.format(name, lat, lon)
+    response = jsonify(message=message)
     response.status_code = StatusCode.SUCCESS if ret_check else StatusCode.SERVER_ERROR
 
     return response
@@ -70,13 +68,17 @@ def delete(name):
 
 @app.route('/get/<name>', methods=['GET'])
 def get_location(name):
+    if not geo_redis.is_key_name_format(name):
+        response = jsonify(message='Bad key format')
+        response.status_code = StatusCode.BAD_REQUEST
+        return response
+
     location_data = geo_redis.get_by_name(name)
     if location_data:
         response = jsonify(location_data)
-        response.status_code = StatusCode.SUCCESS
     else:
-        response = jsonify({'message': 'No location exist'})
-        response.status_code = StatusCode.BAD_REQUEST
+        response = jsonify(message='No location exist')
+    response.status_code = StatusCode.SUCCESS
     return response
 
 
@@ -88,15 +90,26 @@ def update(id):
 @app.route('/get_by_radius', methods=['GET'])
 def get_by_radius():
     if all(arg in request.args for arg in ['lon', 'lat', 'radius']):
-        lat = float(request.args['lat'])
-        lon = float(request.args['lon'])
-        radius = float(request.args['radius'])
-
-        unit = request.args['unit'] if 'unit' in request.args else 'km'
+        val_check = False
+        try:
+            lat = float(request.args['lat'])
+            lon = float(request.args['lon'])
+            radius = float(request.args['radius'])    
+            if radius and check_lat_lon_value(lat, lon):
+                val_check = True
+        except ValueError as e:
+            print e
+        if not val_check:
+            response = jsonify({'message': 'lon, lat value not correct'})
+            response.status_code = StatusCode.BAD_REQUEST
+            return response
 
         key = app.config['REDIS_KEY']
+        unit = request.args['unit'] if 'unit' in request.args else 'km'
+
+        data = geo_redis.get_by_radius(key, lat, lon, radius, unit)
         response = jsonify({
-            'locations': geo_redis.get_by_radius(key, lat, lon, radius, unit),
+            'locations': data,
             'unit': unit,
             'origin': {
                 'lat': lat,
@@ -118,10 +131,11 @@ def get_by_radius_name():
         radius = float(request.args['radius'])
         name = request.args['name']
         unit = request.args['unit'] if 'unit' in request.args else 'km'
-
         key = app.config['REDIS_KEY']
+
+        data = geo_redis.get_by_radius_member(key, name, radius, unit)
         response = jsonify({
-            'locations': geo_redis.get_by_radius_member(key, name, radius, unit),
+            'locations': data,
             'unit': unit,
             'origin': geo_redis.get_by_name(name)
         })
@@ -132,6 +146,7 @@ def get_by_radius_name():
         response.status_code = StatusCode.BAD_REQUEST
         return response
 
+# MAIN
 if __name__ == '__main__':
     # log handler
     handler = TimedRotatingFileHandler(
@@ -146,4 +161,4 @@ if __name__ == '__main__':
                          'REDIS_PORT'], db=app.config['REDIS_DB'])
 
     # run
-    app.run(host='')
+    app.run(host='localhost')

@@ -22,3 +22,14 @@ class GeoConstant(object):
     # prevent set 
     def __setattr__(self, *_):
         pass
+
+def check_lat_lon_value(lat, lon):
+    try:
+        float(lat)
+        float(lon)
+    except ValueError:
+        return False
+    if GeoConstant.LAT_MIN <= lat <= GeoConstant.LAT_MAX \
+        and GeoConstant.LON_MIN <= lon <= GeoConstant.LON_MAX:
+        return True
+    return False
