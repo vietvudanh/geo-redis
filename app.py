@@ -62,9 +62,11 @@ def delete(name):
     key = app.config['REDIS_KEY']
     ret_check = geo_redis.delete(key, name)
 
-    response = jsonify(message='Delete success' if ret_check else 'Cannot delete')
+    response = jsonify(
+        message='Delete success' if ret_check else 'Cannot delete')
     response.status_code = StatusCode.SUCCESS if ret_check else StatusCode.BAD_REQUEST
     return response
+
 
 @app.route('/get/<name>', methods=['GET'])
 def get_location(name):
@@ -82,6 +84,7 @@ def get_location(name):
 def update(id):
     pass
 
+
 @app.route('/get_by_radius', methods=['GET'])
 def get_by_radius():
     if all(arg in request.args for arg in ['lon', 'lat', 'radius']):
@@ -95,17 +98,19 @@ def get_by_radius():
         response = jsonify({
             'locations': geo_redis.get_by_radius(key, lat, lon, radius, unit),
             'unit': unit,
-                'origin': {
-                    'lat': lat,
-                    'lon': lon
-                }
-            })
+            'origin': {
+                'lat': lat,
+                'lon': lon
+            }
+        })
         response.status_code = StatusCode.SUCCESS
         return response
     else:
-        response = jsonify({'message': 'Not enough parameters: lon, lat, radius'})
+        response = jsonify(
+            {'message': 'Not enough parameters: lon, lat, radius'})
         response.status_code = StatusCode.BAD_REQUEST
         return response
+
 
 @app.route('/get_by_radius_name', methods=['GET'])
 def get_by_radius_name():
@@ -118,8 +123,8 @@ def get_by_radius_name():
         response = jsonify({
             'locations': geo_redis.get_by_radius_member(key, name, radius, unit),
             'unit': unit,
-                'origin': geo_redis.get_by_name(name)
-            })
+            'origin': geo_redis.get_by_name(name)
+        })
         response.status_code = StatusCode.SUCCESS
         return response
     else:
