@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/vietvudanh/geo-redis.svg?branch=master)](https://travis-ci.org/vietvudanh/geo-redis)
 
 # geo-redis
-Geography API for Python using 
+Geography REST API for Python using Redis as database. Get use of redis 3.2 [supporting Geo](https://www.compose.com/articles/a-quick-guide-to-redis-3-2s-geo-support/)
 
 # Install
 
@@ -13,3 +13,9 @@ Geography API for Python using
     Install py `pip install -e lib/redis`
 
 3. Geohash
+
+## Some note
+
+I implement this project as REST API, with Flask, due to current requirement that I need an isolating API. But the core is `geo_radis.py` can be used anywhere.
+
+@VietVU, 2016
