@@ -6,7 +6,7 @@ import redis
 class TestGeoredis(unittest.TestCase):
     HOST = 'localhost'
     PORT = 6379
-    TEST_DB = 1
+    TEST_DB = 0
 
     KEY = 'LOCATION'
 
