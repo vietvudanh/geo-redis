@@ -15,14 +15,13 @@ class GeoRedis(object):
 
     UNITS = ['km', 'm', 'mi', 'ft']
 
-    def __init__(self, app, host, port, db):
+    def __init__(self, app, pool):
         try:
-            self._app = app
-            self._redis_conn = redis.StrictRedis(
-                host=host, port=port, db=db)
+            self.app = app
+            self.redis_conn = redis.StrictRedis(connection_pool=pool)
         except Exception as e:
             print e
-            self._app.logger.error('Cannot init GeoRedis')
+            self.app.logger.error('Cannot init GeoRedis')
 
     # PRIVATE
     def _key_name(self, key, hash_name):
@@ -58,7 +57,7 @@ class GeoRedis(object):
         """
         Fetch data form Redis's get() and convert to object
         """
-        value = self._redis_conn.get(key)
+        value = self.redis_conn.get(key)
         if value: return json.loads(value)
         return None
 
@@ -66,7 +65,7 @@ class GeoRedis(object):
         """
         Store data using Redis's set() as json dumps
         """
-        return self._redis_conn.set(key, json.dumps(data))
+        return self.redis_conn.set(key, json.dumps(data))
 
     def _check_unit(self, unit):
         return unit in self.UNITS
@@ -81,15 +80,15 @@ class GeoRedis(object):
         """
         try:
             hash_name = self._geo_hash(lat, lon)
-            self._redis_conn.geoadd(
+            self.redis_conn.geoadd(
                 key, lon, lat, self._key_name(key, hash_name))
             data['name'] = name
             self._set_data_as_json(self._key_name(
                 key, hash_name), data)
         except Exception as e:
-            self._app.logger.error('Cannot add location {}'.format(
+            self.app.logger.error('Cannot add location {}'.format(
                 {'key': key, 'lon': lon, 'lat': lat, 'name': name}))
-            self._app.logger.error(traceback.format_exc())
+            self.app.logger.error(traceback.format_exc())
             return False
         return True
 
@@ -100,16 +99,16 @@ class GeoRedis(object):
         (2) remove to sorted set using zrem(key, name)
         """
         try:
-            if not (self._redis_conn.zscore(key, name) and self._redis_conn.get(name)):
-                self._app.logger.error(
+            if not (self.redis_conn.zscore(key, name) and self.redis_conn.get(name)):
+                self.app.logger.error(
                     "member {0} not exist in key {1}".format(name, key))
                 return False
-            self._redis_conn.zrem(key, name)
-            self._redis_conn.delete(name)
+            self.redis_conn.zrem(key, name)
+            self.redis_conn.delete(name)
         except Exception as e:
-            self._app.logger.error('Cannot delete {}'.format(
+            self.app.logger.error('Cannot delete {}'.format(
                 {'key': key, 'name': name}))
-            self._app.logger.error(traceback.format_exc())
+            self.app.logger.error(traceback.format_exc())
             return False
         return True
 
@@ -122,7 +121,7 @@ class GeoRedis(object):
         key, name = self._break_key_name(key_name)
         data = self._get_data_as_json(key_name)
         if data:
-            data['lat'], data['lon'] = self._redis_conn.geopos(key, key_name)[
+            data['lat'], data['lon'] = self.redis_conn.geopos(key, key_name)[
                 0]
             return data
         else:
@@ -137,21 +136,21 @@ class GeoRedis(object):
             or not check_lat_lon_value(lat, lon):
             return None
         try:
-            distance_data = self._redis_conn.georadius(
+            distance_data = self.redis_conn.georadius(
                 key, lat, lon, radius, unit, True)
             data = []
             for location, dist in distance_data:
                 data_location =  self._get_data_as_json(location)
                 data_location['distance'] = dist
                 data_location['lat'], data_location['lon'] = \
-                    self._redis_conn.geopos(key, location)[0]
+                    self.redis_conn.geopos(key, location)[0]
                 data.append(data_location)
             return data
         except Exception as e:
             print e
-            self._app.logger.error('Cannot get radius {}'.format(
+            self.app.logger.error('Cannot get radius {}'.format(
                 {'key': key, 'lon': lon, 'lat': lat, 'radius': radius, 'unit': unit}))
-            self._app.logger.error(traceback.format_exc())
+            self.app.logger.error(traceback.format_exc())
             return None
 
     def get_by_radius_member(self, key, name, radius, unit='km'):
@@ -162,7 +161,7 @@ class GeoRedis(object):
         if not self._check_unit(unit):
             return None
         try:
-            distance_data = self._redis_conn.georadiusbymember(
+            distance_data = self.redis_conn.georadiusbymember(
                 key, name, radius, unit, True)
             data = []
             for location, dist in distance_data:
@@ -170,13 +169,13 @@ class GeoRedis(object):
                 data_location =  self._get_data_as_json(location)
                 data_location['distance'] = dist
                 data_location['lat'], data_location['lon'] = \
-                    self._redis_conn.geopos(key, location)[0]
+                    self.redis_conn.geopos(key, location)[0]
                 data.append(data_location)
             return data
         except Exception as e:
-            self._app.logger.error('Cannot get data by radius {}'.format(
+            self.app.logger.error('Cannot get data by radius {}'.format(
                 {'key': key, 'name': name, 'radius': radius, 'unit': unit}))
-            self._app.logger.error(traceback.format_exc())
+            self.app.logger.error(traceback.format_exc())
             return None
 
     def get_all(self, key):
@@ -185,15 +184,15 @@ class GeoRedis(object):
         TODO: Probaly just debug function, remove this after done
         """
         try:
-            names_data = self._redis_conn.zrange(key, 0, -1)
+            names_data = self.redis_conn.zrange(key, 0, -1)
             data = []
             for name in names_data:
                 data_location = self._get_data_as_json(name)
                 data_location['key_name'] = name
                 data_location['lat'], data_location['lon'] = \
-                    self._redis_conn.geopos(key, name)[0]
+                    self.redis_conn.geopos(key, name)[0]
                 data.append(data_location)
             return data
         except:
-            self._app.logger.error(traceback.format_exc())
+            self.app.logger.error(traceback.format_exc())
             return None

@@ -21,11 +21,11 @@ class TestAdd(TestGeoredis):
 
     def test_add_success(self):
         for lat, lon, name in self.test_data_success:
-            self.assertTrue(self._geo_redis.add(self.KEY, lat, lon, name))
+            self.assertTrue(self.geo_redis.add(self.KEY, lat, lon, name))
 
     def test_add_fail(self):
         for lat, lon, name in self.test_data_wrong_lon_lat:
-            self.assertFalse(self._geo_redis.add(self.KEY, lat, lon, name))
+            self.assertFalse(self.geo_redis.add(self.KEY, lat, lon, name))
 
 if __name__ == '__main__':
     unittest.main()

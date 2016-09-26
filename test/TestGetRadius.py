@@ -39,31 +39,31 @@ class TestGetRadius(TestGeoredis):
 
     def setUp(self):
         for lat, lon, name in self.test_data_added:
-            self._geo_redis.add(self.KEY, lat, lon, name)
+            self.geo_redis.add(self.KEY, lat, lon, name)
 
     def test_get_by_radius_success(self):
         for lat, lon, r, unit in self.test_data_origin_success:
-            self.assertIsInstance(self._geo_redis.get_by_radius(
+            self.assertIsInstance(self.geo_redis.get_by_radius(
                 self.KEY, lat, lon, r, unit), list)
 
     def test_get_by_radius_fail(self):
         for lat, lon, r, unit in self.test_data_origin_fail:
-            self.assertEqual(self._geo_redis.get_by_radius(
+            self.assertEqual(self.geo_redis.get_by_radius(
                 self.KEY, lat, lon, r, unit), None)
 
     def test_get_by_radius_member_success(self):
-        all_data = self._geo_redis.get_all(self.KEY)
+        all_data = self.geo_redis.get_all(self.KEY)
         for location in all_data:
-            self.assertIsInstance(self._geo_redis.get_by_radius_member(
+            self.assertIsInstance(self.geo_redis.get_by_radius_member(
                 self.KEY, location['key_name'], 10000, 'km'), list)
 
     def test_get_by_radius_member_fail(self):
         for name, r, unit in self.test_data_name_fail:
             if unit:
-                self.assertEqual(self._geo_redis.get_by_radius_member(
+                self.assertEqual(self.geo_redis.get_by_radius_member(
                     self.KEY, name, r, unit), None)
             else:
-                self.assertEqual(self._geo_redis.get_by_radius_member(
+                self.assertEqual(self.geo_redis.get_by_radius_member(
                     self.KEY, name, r), None)
 
 if __name__ == '__main__':

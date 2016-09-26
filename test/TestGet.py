@@ -23,21 +23,21 @@ class TestGet(TestGeoredis):
 
     def setUp(self):
         for lat, lon, name in self.test_data_added:
-            self._geo_redis.add(self.KEY, lat, lon, name)
+            self.geo_redis.add(self.KEY, lat, lon, name)
 
     def test_get_all(self):
-        all_data = self._geo_redis.get_all(self.KEY)
+        all_data = self.geo_redis.get_all(self.KEY)
         self.assertEqual(len(all_data), len(self.test_data_added))
         self.assertIsInstance(all_data, list)
 
     def test_get_one_success(self):
-        all_data = self._geo_redis.get_all(self.KEY)
+        all_data = self.geo_redis.get_all(self.KEY)
         for location in all_data:
-            self.assertIsInstance(self._geo_redis.get_by_name(location['key_name']), dict)
+            self.assertIsInstance(self.geo_redis.get_by_name(location['key_name']), dict)
 
     def test_get_one_fail(self):
         for name in self.test_data_fail:
-            self.assertNotIsInstance(self._geo_redis.get_by_name(str(name)), dict)
+            self.assertNotIsInstance(self.geo_redis.get_by_name(str(name)), dict)
 
 if __name__ == '__main__':
     unittest.main()

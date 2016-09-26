@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, g
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import redis
 from utils.geo_redis import GeoRedis
 from utils.constant import StatusCode, GeoConstant, check_lat_lon_value
 
@@ -14,6 +15,7 @@ app.config.from_object('config.DevConfig')
 @app.route('/all', methods=['GET'])
 def list_all():
     key = app.config['REDIS_KEY']
+    geo_redis = GeoRedis(app=app, pool=connection_pool)
     data = geo_redis.get_all(key)
     if data is not None:
         response = jsonify({'locations': data})
@@ -39,6 +41,7 @@ def add():
         response.status_code = StatusCode.BAD_REQUEST
         return response
 
+    geo_redis = GeoRedis(app=app, pool=connection_pool)
     name = request.form['name']
     key = app.config['REDIS_KEY']
 
@@ -57,6 +60,7 @@ def add():
 
 @app.route('/delete/<name>', methods=['DELETE'])
 def delete(name):
+    geo_redis = GeoRedis(app=app, pool=connection_pool)
     key = app.config['REDIS_KEY']
     ret_check = geo_redis.delete(key, name)
 
@@ -68,6 +72,7 @@ def delete(name):
 
 @app.route('/get/<name>', methods=['GET'])
 def get_location(name):
+    geo_redis = GeoRedis(app=app, pool=connection_pool)
     if not geo_redis.is_key_name_format(name):
         response = jsonify(message='Bad key format')
         response.status_code = StatusCode.BAD_REQUEST
@@ -106,7 +111,7 @@ def get_by_radius():
 
         key = app.config['REDIS_KEY']
         unit = request.args['unit'] if 'unit' in request.args else 'km'
-
+        geo_redis = GeoRedis(app=app, pool=connection_pool)
         data = geo_redis.get_by_radius(key, lat, lon, radius, unit)
         response = jsonify({
             'locations': data,
@@ -133,6 +138,7 @@ def get_by_radius_name():
         unit = request.args['unit'] if 'unit' in request.args else 'km'
         key = app.config['REDIS_KEY']
 
+        geo_redis = GeoRedis(app=app, pool=connection_pool)
         data = geo_redis.get_by_radius_member(key, name, radius, unit)
         response = jsonify({
             'locations': data,
@@ -157,7 +163,7 @@ if __name__ == '__main__':
     app.logger.addHandler(handler)
 
     # redis
-    geo_redis = GeoRedis(app=app, host=app.config['REDIS_HOST'], port=app.config[
+    connection_pool = redis.ConnectionPool(host=app.config['REDIS_HOST'], port=app.config[
                          'REDIS_PORT'], db=app.config['REDIS_DB'])
 
     # run

@@ -22,17 +22,17 @@ class TestDelete(TestGeoredis):
     def setUp(self):
         # data for test
         for lat, lon, name in self.test_data_added:
-            self._geo_redis.add(self.KEY, lat, lon, name)
+            self.geo_redis.add(self.KEY, lat, lon, name)
 
-        self._added_data = self._geo_redis.get_all(self.KEY)
+        self.added_data = self.geo_redis.get_all(self.KEY)
 
     def test_delete_success(self):
-        for location in self._added_data:
-            self.assertTrue(self._geo_redis.delete(self.KEY, location['key_name']))
+        for location in self.added_data:
+            self.assertTrue(self.geo_redis.delete(self.KEY, location['key_name']))
 
     def test_delete_fail(self):
         for name in self.test_data_fail:
-            self.assertFalse(self._geo_redis.delete(self.KEY, name))
+            self.assertFalse(self.geo_redis.delete(self.KEY, name))
 
 if __name__ == '__main__':
     unittest.main()

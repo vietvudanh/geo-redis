@@ -1,6 +1,7 @@
 import unittest
 from mock import Mock
 from utils.geo_redis import GeoRedis
+import redis
 
 class TestGeoredis(unittest.TestCase):
     HOST = 'localhost'
@@ -16,8 +17,9 @@ class TestGeoredis(unittest.TestCase):
         app.logger.error = lambda s : None
         app.logger.info = lambda s : None
 
-        self._geo_redis = GeoRedis(app, host=self.HOST, port=self.PORT, db=self.TEST_DB)
+        pool = redis.ConnectionPool(host=self.HOST, port=self.PORT, db=self.TEST_DB)
+        self.geo_redis = GeoRedis(app, pool)
 
     def tearDown(self):
-        self._geo_redis._redis_conn.flushdb()
+        self.geo_redis.redis_conn.flushdb()
 
